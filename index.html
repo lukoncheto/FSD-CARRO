@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Robot-IA | Web Bluetooth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e2f;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+        }
+        .card {
+            background-color: #2b2b40;
+            max-width: 450px;
+            margin: auto;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            transition: 0.2s;
+        }
+        .btn-connect { background-color: #28a745; color: white; width: 80%; font-size: 18px; }
+        .btn-cmd { background-color: #007bff; color: white; width: 100px; height: 60px; font-size: 16px; }
+        .btn-stop { background-color: #dc3545; color: white; width: 100px; height: 60px; }
+        .btn-toggle { background-color: #ffc107; color: black; margin-top: 15px; }
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            justify-items: center;
+            margin-top: 20px;
+        }
+        #status { font-weight: bold; color: #ff6b6b; margin-top: 10px; }
+        .orientation-info { margin-top: 15px; font-size: 14px; color: #a0a0b0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Control Robot-IA</h2>
+    <p id="status">Estado: Desconectado</p>
+    <button class="btn-connect" onclick="conectarBLE()">Conectar BLE</button>
+
+    <hr style="border-color: #444; margin: 20px 0;">
+
+    <!-- MODO 1: BOTONES -->
+    <h3>Modo 1: Botones Directos</h3>
+    <div class="grid-buttons">
+        <div></div>
+        <button class="btn-cmd" onclick="enviarComando('ad')">▲ Adelante</button>
+        <div></div>
+        
+        <button class="btn-cmd" onclick="enviarComando('ga')">◀ Giro Ant.</button>
+        <button class="btn-stop" onclick="enviarComando('stop')">STOP</button>
+        <button class="btn-cmd" onclick="enviarComando('gh')">Giro Hor. ▶</button>
+        
+        <div></div>
+        <button class="btn-cmd" onclick="enviarComando('at')">▼ Atrás</button>
+        <div></div>
+    </div>
+
+    <hr style="border-color: #444; margin: 20px 0;">
+
+    <!-- MODO 2: ACELERÓMETRO -->
+    <h3>Modo 2: Acelerómetro (Inclinación)</h3>
+    <button id="btnAce" class="btn-toggle" onclick="toggleAcelerometro()">Activar Acelerómetro</button>
+    <div class="orientation-info">
+        <p>Pitch ($\beta$): <span id="pitch">0</span>° | Roll ($\gamma$): <span id="roll">0</span>°</p>
+        <p>Comando enviado: <span id="cmdSent" style="color:#00ff88;">-</span></p>
+    </div>
+</div>
+
+<script>
+    // UUIDs configurados en tu ESP32
+    const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+    const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+
+    let caracteristicaBLE = null;
+    let acelerometroActivo = false;
+    let ultimoComando = "";
+
+    // CONEXIÓN VÍA WEB BLUETOOTH API
+async function conectarBLE() {
+        try {
+            document.getElementById('status').innerText = "Estado: Buscando...";
+            
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'Robot-IA' }],
+                optionalServices: [SERVICE_UUID]
+            });
+
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            caracteristicaBLE = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+            document.getElementById('status').innerText = "Estado: Conectado a Robot-IA";
+            document.getElementById('status').style.color = "#00ff88";
+        } catch (error) {
+            console.error("Error al conectar:", error);
+            // ESTO MUESTRA EL ERROR REAL EN LA PÁGINA:
+            document.getElementById('status').innerText = "Error: " + error.name + " - " + error.message;
+            document.getElementById('status').style.color = "#ff6b6b";
+        }
+    }
+
+    // ENVÍO DE COMANDOS A LA ESP32
+    async function enviarComando(cmd) {
+        if (!caracteristicaBLE) {
+            alert("Primero debes conectar el Bluetooth.");
+            return;
+        }
+        try {
+            const encoder = new TextEncoder();
+            await caracteristicaBLE.writeValue(encoder.encode(cmd));
+            document.getElementById('cmdSent').innerText = cmd;
+        } catch (error) {
+            console.error("Error al enviar comando:", error);
+        }
+    }
+
+    // CONTROL POR ACELERÓMETRO (DeviceOrientation)
+    function toggleAcelerometro() {
+        if (!acelerometroActivo) {
+            // Solicitar permisos en iOS si aplica
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') activarSensor();
+                    });
+            } else {
+                activarSensor();
+            }
+        } else {
+            acelerometroActivo = false;
+            document.getElementById('btnAce').innerText = "Activar Acelerómetro";
+            document.getElementById('btnAce').style.backgroundColor = "#ffc107";
+            enviarComando("stop");
+        }
+    }
+
+    function activarSensor() {
+        acelerometroActivo = true;
+        document.getElementById('btnAce').innerText = "Desactivar Acelerómetro";
+        document.getElementById('btnAce').style.backgroundColor = "#dc3545";
+        window.addEventListener('deviceorientation', manejarInclinacion);
+    }
+
+    function manejarInclinacion(event) {
+        if (!acelerometroActivo || !caracteristicaBLE) return;
+
+        let pitch = event.beta;  // Inclinación adelante/atrás (-180° a 180°)
+        let roll = event.gamma;   // Inclinación izquierda/derecha (-90° a 90°)
+
+        document.getElementById('pitch').innerText = Math.round(pitch);
+        document.getElementById('roll').innerText = Math.round(roll);
+
+        let nuevoComando = "stop";
+
+        // Umbrales de inclinación (grados)
+        if (pitch < -15) {
+            nuevoComando = "ad"; // Inclinar hacia adelante
+        } else if (pitch > 20) {
+            nuevoComando = "at"; // Inclinar hacia atrás
+        } else if (roll > 20) {
+            nuevoComando = "gh"; // Inclinar a la derecha
+        } else if (roll < -20) {
+            nuevoComando = "ga"; // Inclinar a la izquierda
+        }
+
+        // Transmitir únicamente si cambia el comando para evitar saturar el canal BLE
+        if (nuevoComando !== ultimoComando) {
+            ultimoComando = nuevoComando;
+            enviarComando(nuevoComando);
+        }
+    }
+</script>
+</body>
+</html>
