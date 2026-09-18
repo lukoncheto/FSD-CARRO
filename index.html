@@ -28,7 +28,7 @@
             border-radius: 8px;
             cursor: pointer;
             margin: 5px;
-            transition: 0.2s;
+            touch-action: manipulation; /* Mejora la respuesta táctil en móviles */
         }
         .btn-connect { background-color: #28a745; color: white; width: 80%; font-size: 18px; }
         .btn-cmd { background-color: #007bff; color: white; width: 100px; height: 60px; font-size: 16px; }
@@ -76,13 +76,12 @@
     <h3>Modo 2: Acelerómetro (Inclinación)</h3>
     <button id="btnAce" class="btn-toggle" onclick="toggleAcelerometro()">Activar Acelerómetro</button>
     <div class="orientation-info">
-        <p>Pitch ($\beta$): <span id="pitch">0</span>° | Roll ($\gamma$): <span id="roll">0</span>°</p>
+        <p>Beta (Pitch): <span id="pitch">0</span>° | Gamma (Roll): <span id="roll">0</span>°</p>
         <p>Comando enviado: <span id="cmdSent" style="color:#00ff88;">-</span></p>
     </div>
 </div>
 
 <script>
-    // UUIDs configurados en tu ESP32
     const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
     const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
 
@@ -90,8 +89,7 @@
     let acelerometroActivo = false;
     let ultimoComando = "";
 
-    // CONEXIÓN VÍA WEB BLUETOOTH API
-async function conectarBLE() {
+    async function conectarBLE() {
         try {
             document.getElementById('status').innerText = "Estado: Buscando...";
             
@@ -108,16 +106,14 @@ async function conectarBLE() {
             document.getElementById('status').style.color = "#00ff88";
         } catch (error) {
             console.error("Error al conectar:", error);
-            // ESTO MUESTRA EL ERROR REAL EN LA PÁGINA:
-            document.getElementById('status').innerText = "Error: " + error.name + " - " + error.message;
+            document.getElementById('status').innerText = "Error: " + error.message;
             document.getElementById('status').style.color = "#ff6b6b";
         }
     }
 
-    // ENVÍO DE COMANDOS A LA ESP32
     async function enviarComando(cmd) {
         if (!caracteristicaBLE) {
-            alert("Primero debes conectar el Bluetooth.");
+            alert("¡Conecta el Bluetooth primero!");
             return;
         }
         try {
@@ -126,18 +122,24 @@ async function conectarBLE() {
             document.getElementById('cmdSent').innerText = cmd;
         } catch (error) {
             console.error("Error al enviar comando:", error);
+            document.getElementById('status').innerText = "Error de transmisión";
         }
     }
 
-    // CONTROL POR ACELERÓMETRO (DeviceOrientation)
-    function toggleAcelerometro() {
+    async function toggleAcelerometro() {
         if (!acelerometroActivo) {
-            // Solicitar permisos en iOS si aplica
+            // Petición explícita de permisos para sensores en dispositivos móviles (iOS/Android modernos)
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') activarSensor();
-                    });
+                try {
+                    const response = await DeviceOrientationEvent.requestPermission();
+                    if (response === 'granted') {
+                        activarSensor();
+                    } else {
+                        alert("Permiso de sensores denegado.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
             } else {
                 activarSensor();
             }
@@ -145,6 +147,7 @@ async function conectarBLE() {
             acelerometroActivo = false;
             document.getElementById('btnAce').innerText = "Activar Acelerómetro";
             document.getElementById('btnAce').style.backgroundColor = "#ffc107";
+            window.removeEventListener('deviceorientation', manejarInclinacion);
             enviarComando("stop");
         }
     }
@@ -153,32 +156,32 @@ async function conectarBLE() {
         acelerometroActivo = true;
         document.getElementById('btnAce').innerText = "Desactivar Acelerómetro";
         document.getElementById('btnAce').style.backgroundColor = "#dc3545";
-        window.addEventListener('deviceorientation', manejarInclinacion);
+        window.addEventListener('deviceorientation', manejarInclinacion, true);
     }
 
     function manejarInclinacion(event) {
         if (!acelerometroActivo || !caracteristicaBLE) return;
 
-        let pitch = event.beta;  // Inclinación adelante/atrás (-180° a 180°)
-        let roll = event.gamma;   // Inclinación izquierda/derecha (-90° a 90°)
+        let pitch = event.beta;   // Adelante / Atrás
+        let roll = event.gamma;    // Izquierda / Derecha
+
+        if (pitch === null || roll === null) return;
 
         document.getElementById('pitch').innerText = Math.round(pitch);
         document.getElementById('roll').innerText = Math.round(roll);
 
         let nuevoComando = "stop";
 
-        // Umbrales de inclinación (grados)
         if (pitch < -15) {
-            nuevoComando = "ad"; // Inclinar hacia adelante
+            nuevoComando = "ad";
         } else if (pitch > 20) {
-            nuevoComando = "at"; // Inclinar hacia atrás
+            nuevoComando = "at";
         } else if (roll > 20) {
-            nuevoComando = "gh"; // Inclinar a la derecha
+            nuevoComando = "gh";
         } else if (roll < -20) {
-            nuevoComando = "ga"; // Inclinar a la izquierda
+            nuevoComando = "ga";
         }
 
-        // Transmitir únicamente si cambia el comando para evitar saturar el canal BLE
         if (nuevoComando !== ultimoComando) {
             ultimoComando = nuevoComando;
             enviarComando(nuevoComando);
