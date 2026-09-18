@@ -3,46 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Robot-IA | Web Bluetooth</title>
+    <title>Robot-IA | Control Multimodal</title>
+    
+    <!-- Librerías de MediaPipe para Visión por Computador (Gestos) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #1e1e2f;
             color: #ffffff;
             text-align: center;
-            padding: 20px;
+            padding: 10px;
+            margin: 0;
         }
         .card {
             background-color: #2b2b40;
-            max-width: 450px;
+            max-width: 400px;
             margin: auto;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
         button {
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 12px 15px;
+            font-size: 15px;
             font-weight: bold;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             margin: 5px;
-            touch-action: manipulation; /* Mejora la respuesta táctil en móviles */
+            touch-action: manipulation;
         }
-        .btn-connect { background-color: #28a745; color: white; width: 80%; font-size: 18px; }
-        .btn-cmd { background-color: #007bff; color: white; width: 100px; height: 60px; font-size: 16px; }
-        .btn-stop { background-color: #dc3545; color: white; width: 100px; height: 60px; }
-        .btn-toggle { background-color: #ffc107; color: black; margin-top: 15px; }
+        .btn-connect { background-color: #28a745; color: white; width: 100%; font-size: 18px; }
+        .btn-cmd { background-color: #007bff; color: white; width: 90px; height: 60px; }
+        .btn-stop { background-color: #dc3545; color: white; width: 90px; height: 60px; }
+        .btn-toggle { background-color: #ffc107; color: black; width: 100%; margin-top: 10px; }
+        
         .grid-buttons {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             justify-items: center;
-            margin-top: 20px;
+            margin-top: 15px;
         }
-        #status { font-weight: bold; color: #ff6b6b; margin-top: 10px; }
-        .orientation-info { margin-top: 15px; font-size: 14px; color: #a0a0b0; }
+        #status { font-weight: bold; margin-bottom: 15px; color: #ff6b6b; }
+        .info-text { font-size: 13px; color: #a0a0b0; margin: 10px 0; }
+        
+        /* Contenedor de la cámara */
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            margin: 15px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            display: none; /* Oculto por defecto */
+        }
+        video, canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
@@ -50,51 +79,73 @@
 <div class="card">
     <h2>Control Robot-IA</h2>
     <p id="status">Estado: Desconectado</p>
-    <button class="btn-connect" onclick="conectarBLE()">Conectar BLE</button>
+    <button class="btn-connect" onclick="conectarBLE()">Conectar Bluetooth</button>
+    <p class="info-text">Comando actual: <span id="cmdSent" style="color:#00ff88; font-weight:bold;">-</span></p>
 
     <hr style="border-color: #444; margin: 20px 0;">
 
     <!-- MODO 1: BOTONES -->
-    <h3>Modo 1: Botones Directos</h3>
+    <h3>1. Modo Botones</h3>
     <div class="grid-buttons">
         <div></div>
-        <button class="btn-cmd" onclick="enviarComando('ad')">▲ Adelante</button>
+        <button class="btn-cmd" onclick="enviarComando('ad')">▲</button>
         <div></div>
         
-        <button class="btn-cmd" onclick="enviarComando('ga')">◀ Giro Ant.</button>
+        <button class="btn-cmd" onclick="enviarComando('ga')">◀</button>
         <button class="btn-stop" onclick="enviarComando('stop')">STOP</button>
-        <button class="btn-cmd" onclick="enviarComando('gh')">Giro Hor. ▶</button>
+        <button class="btn-cmd" onclick="enviarComando('gh')">▶</button>
         
         <div></div>
-        <button class="btn-cmd" onclick="enviarComando('at')">▼ Atrás</button>
+        <button class="btn-cmd" onclick="enviarComando('at')">▼</button>
         <div></div>
     </div>
 
     <hr style="border-color: #444; margin: 20px 0;">
 
     <!-- MODO 2: ACELERÓMETRO -->
-    <h3>Modo 2: Acelerómetro (Inclinación)</h3>
+    <h3>2. Modo Acelerómetro</h3>
     <button id="btnAce" class="btn-toggle" onclick="toggleAcelerometro()">Activar Acelerómetro</button>
-    <div class="orientation-info">
-        <p>Beta (Pitch): <span id="pitch">0</span>° | Gamma (Roll): <span id="roll">0</span>°</p>
-        <p>Comando enviado: <span id="cmdSent" style="color:#00ff88;">-</span></p>
+    <p class="info-text">Inclinación: <span id="pitch">0</span>° (Pitch) | <span id="roll">0</span>° (Roll)</p>
+
+    <hr style="border-color: #444; margin: 20px 0;">
+
+    <!-- MODO 3: GESTOS DE MANO -->
+    <h3>3. Modo Gestos de Mano</h3>
+    <button id="btnGestos" class="btn-toggle" style="background-color: #17a2b8; color: white;" onclick="toggleGestos()">Activar Cámara (Gestos)</button>
+    <div class="video-container" id="videoContainer">
+        <video id="videoElement" autoplay playsinline></video>
+        <canvas id="canvasElement"></canvas>
     </div>
+    <p class="info-text">Usa tu dedo índice: Arriba, Abajo, Izquierda, Derecha.</p>
 </div>
 
 <script>
+    // --- VARIABLES GLOBALES BLE ---
     const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
     const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
-
     let caracteristicaBLE = null;
-    let acelerometroActivo = false;
     let ultimoComando = "";
 
+    // --- VARIABLES ACELERÓMETRO ---
+    let acelerometroActivo = false;
+
+    // --- VARIABLES GESTOS (MEDIAPIPE) ---
+    let gestosActivos = false;
+    let camera = null;
+    const videoElement = document.getElementById('videoElement');
+    const canvasElement = document.getElementById('canvasElement');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    // ==========================================
+    // 1. LÓGICA BLUETOOTH (BLE)
+    // ==========================================
     async function conectarBLE() {
         try {
             document.getElementById('status').innerText = "Estado: Buscando...";
             
+            // Si cambiaste el nombre en C++ a "Twingo", asegúrate de cambiarlo aquí también.
             const device = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'Robot-IA' }],
+                filters: [{ name: 'Robot-IA' }], // <-- Cambia a 'Twingo' si aplica
                 optionalServices: [SERVICE_UUID]
             });
 
@@ -102,91 +153,177 @@
             const service = await server.getPrimaryService(SERVICE_UUID);
             caracteristicaBLE = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-            document.getElementById('status').innerText = "Estado: Conectado a Robot-IA";
+            document.getElementById('status').innerText = "Estado: Conectado";
             document.getElementById('status').style.color = "#00ff88";
         } catch (error) {
-            console.error("Error al conectar:", error);
+            console.error("Error BLE:", error);
             document.getElementById('status').innerText = "Error: " + error.message;
             document.getElementById('status').style.color = "#ff6b6b";
         }
     }
 
     async function enviarComando(cmd) {
-        if (!caracteristicaBLE) {
-            alert("¡Conecta el Bluetooth primero!");
-            return;
-        }
+        if (cmd === ultimoComando) return; // Evita saturar el Bluetooth enviando lo mismo
+        ultimoComando = cmd;
+        document.getElementById('cmdSent').innerText = cmd;
+
+        if (!caracteristicaBLE) return; // Si no hay BLE conectado, solo muestra en pantalla
+        
         try {
             const encoder = new TextEncoder();
             await caracteristicaBLE.writeValue(encoder.encode(cmd));
-            document.getElementById('cmdSent').innerText = cmd;
         } catch (error) {
-            console.error("Error al enviar comando:", error);
-            document.getElementById('status').innerText = "Error de transmisión";
+            console.error("Error enviando datos:", error);
         }
     }
 
+    // ==========================================
+    // 2. LÓGICA ACELERÓMETRO
+    // ==========================================
     async function toggleAcelerometro() {
         if (!acelerometroActivo) {
-            // Petición explícita de permisos para sensores en dispositivos móviles (iOS/Android modernos)
+            // Petición de permisos requerida por iOS y navegadores móviles modernos
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
-                    const response = await DeviceOrientationEvent.requestPermission();
-                    if (response === 'granted') {
-                        activarSensor();
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    if (permissionState === 'granted') {
+                        iniciarSensor();
                     } else {
-                        alert("Permiso de sensores denegado.");
+                        alert("Permiso denegado para usar los sensores.");
                     }
-                } catch (e) {
-                    console.error(e);
+                } catch (error) {
+                    console.error("Error pidiendo permisos:", error);
                 }
             } else {
-                activarSensor();
+                iniciarSensor(); // Navegadores que no requieren petición explícita
             }
         } else {
             acelerometroActivo = false;
             document.getElementById('btnAce').innerText = "Activar Acelerómetro";
             document.getElementById('btnAce').style.backgroundColor = "#ffc107";
-            window.removeEventListener('deviceorientation', manejarInclinacion);
+            window.removeEventListener('deviceorientation', procesarInclinacion);
             enviarComando("stop");
         }
     }
 
-    function activarSensor() {
+    function iniciarSensor() {
         acelerometroActivo = true;
         document.getElementById('btnAce').innerText = "Desactivar Acelerómetro";
         document.getElementById('btnAce').style.backgroundColor = "#dc3545";
-        window.addEventListener('deviceorientation', manejarInclinacion, true);
+        window.addEventListener('deviceorientation', procesarInclinacion);
     }
 
-    function manejarInclinacion(event) {
-        if (!acelerometroActivo || !caracteristicaBLE) return;
+    function procesarInclinacion(event) {
+        if (!acelerometroActivo) return;
 
-        let pitch = event.beta;   // Adelante / Atrás
-        let roll = event.gamma;    // Izquierda / Derecha
+        let pitch = event.beta;  // Inclinación Frontal
+        let roll = event.gamma;  // Inclinación Lateral
 
         if (pitch === null || roll === null) return;
 
         document.getElementById('pitch').innerText = Math.round(pitch);
         document.getElementById('roll').innerText = Math.round(roll);
 
-        let nuevoComando = "stop";
+        let cmd = "stop";
+        if (pitch < -15) cmd = "ad";
+        else if (pitch > 20) cmd = "at";
+        else if (roll > 20) cmd = "gh";
+        else if (roll < -20) cmd = "ga";
 
-        if (pitch < -15) {
-            nuevoComando = "ad";
-        } else if (pitch > 20) {
-            nuevoComando = "at";
-        } else if (roll > 20) {
-            nuevoComando = "gh";
-        } else if (roll < -20) {
-            nuevoComando = "ga";
+        enviarComando(cmd);
+    }
+
+    // ==========================================
+    // 3. LÓGICA GESTOS DE MANO (MediaPipe)
+    // ==========================================
+    const hands = new window.Hands({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+    }});
+
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 0, // 0 para mayor velocidad en móviles
+        minDetectionConfidence: 0.6,
+        minTrackingConfidence: 0.6
+    });
+
+    hands.onResults((results) => {
+        if (!gestosActivos) return;
+
+        // Limpiar el canvas
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            const landmarks = results.multiHandLandmarks[0];
+            
+            // Dibujar la malla de la mano
+            window.drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+            window.drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 1, radius: 2});
+
+            // Mapeo espacial: Posición de la punta del dedo índice (Landmark 8)
+            const indexX = landmarks[8].x;
+            const indexY = landmarks[8].y;
+
+            let cmd = "stop";
+            
+            // Dividimos la pantalla en zonas para determinar el comando
+            if (indexY < 0.3) {
+                cmd = "ad"; // Dedo en la parte superior
+            } else if (indexY > 0.7) {
+                cmd = "at"; // Dedo en la parte inferior
+            } else if (indexX < 0.3) {
+                cmd = "gh"; // Dedo a la izquierda de la cámara (Giro horario)
+            } else if (indexX > 0.7) {
+                cmd = "ga"; // Dedo a la derecha de la cámara (Giro antihorario)
+            }
+
+            enviarComando(cmd);
+        } else {
+            // Si no hay manos en pantalla, detener
+            enviarComando("stop");
         }
+        canvasCtx.restore();
+    });
 
-        if (nuevoComando !== ultimoComando) {
-            ultimoComando = nuevoComando;
-            enviarComando(nuevoComando);
+    async function toggleGestos() {
+        if (!gestosActivos) {
+            gestosActivos = true;
+            document.getElementById('videoContainer').style.display = "block";
+            document.getElementById('btnGestos').innerText = "Desactivar Gestos";
+            document.getElementById('btnGestos').style.backgroundColor = "#dc3545";
+
+            // Asegurar que el canvas coincida con el video
+            canvasElement.width = 320;
+            canvasElement.height = 240;
+
+            if (!camera) {
+                camera = new window.Camera(videoElement, {
+                    onFrame: async () => {
+                        if (gestosActivos) {
+                            await hands.send({image: videoElement});
+                        }
+                    },
+                    width: 320,
+                    height: 240,
+                    facingMode: "user" // Usa la cámara frontal
+                });
+            }
+            camera.start();
+        } else {
+            gestosActivos = false;
+            document.getElementById('videoContainer').style.display = "none";
+            document.getElementById('btnGestos').innerText = "Activar Cámara (Gestos)";
+            document.getElementById('btnGestos').style.backgroundColor = "#17a2b8";
+            
+            if (camera) {
+                camera.stop();
+            }
+            enviarComando("stop");
         }
     }
 </script>
+
 </body>
 </html>
