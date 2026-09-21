@@ -1,323 +1,378 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Multimodal | Robot-IA</title>
-    
-    <!-- Librerías de Inteligencia Artificial (MediaPipe) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
-
-    <style>
-        :root { --bg: #12121c; --card: #1e1e2f; --text: #e0e0e0; --accent: #00ff88; --danger: #ff4757; --btn: #2d2d44; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; text-align: center; }
-        .dashboard { max-width: 600px; margin: auto; background: var(--card); padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
-        h1 { margin-top: 0; font-size: 24px; color: #fff; }
-        .status-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
-        .status-text { font-weight: bold; color: var(--danger); }
-        .cmd-text { color: var(--accent); font-size: 1.2em; font-weight: bold; }
-        
-        button { padding: 12px; font-size: 14px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; color: white; touch-action: manipulation; }
-        button:active { transform: scale(0.95); }
-        
-        .conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .btn-usb { background: #007bff; } .btn-ble { background: #17a2b8; }
-        
-        .section { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-        .section h3 { margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
-        
-        .btn-dir { background: var(--btn); width: 60px; height: 60px; font-size: 20px; }
-        .btn-stop { background: var(--danger); width: 60px; height: 60px; font-size: 14px; }
-        .d-pad { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; justify-content: center; }
-        
-        .btn-mode { width: 100%; background: #4b4b69; margin-top: 5px; }
-        .btn-mode.active { background: var(--accent); color: black; }
-
-        .video-wrapper { position: relative; width: 100%; max-width: 320px; margin: 15px auto; border-radius: 10px; overflow: hidden; display: none; }
-        video, canvas { width: 100%; height: auto; border-radius: 10px; }
-        canvas { position: absolute; top: 0; left: 0; z-index: 10; }
-        .data-stream { font-size: 12px; color: #888; margin-top: 5px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Dashboard Multimodal | Robot-IA</title>
+<!-- Librerías de Inteligencia Artificial (MediaPipe) - No requieren descarga -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+<style>
+:root { --bg: #12121c; --card: #1e1e2f; --text: #e0e0e0; --accent: #00ff88; --danger: #ff4757; --warning: #ffb020; --btn: #2d2d44; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; text-align: center; }
+.dashboard { max-width: 600px; margin: auto; background: var(--card); padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+h1 { margin-top: 0; font-size: 24px; color: #fff; }
+.status-box { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #333; }
+.status-text { font-weight: bold; color: var(--danger); }
+.cmd-text { color: var(--accent); font-size: 1.2em; font-weight: bold; }
+button { padding: 12px; font-size: 14px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; color: white; touch-action: manipulation; }
+button:active { transform: scale(0.95); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.conn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.btn-usb { background: #007bff; } .btn-ble { background: #17a2b8; }
+.section { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 15px; text-align: center; }
+.section h3 { margin: 0 0 10px 0; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
+.btn-dir { background: var(--btn); width: 60px; height: 60px; font-size: 20px; }
+.btn-stop { background: var(--danger); width: 60px; height: 60px; font-size: 14px; }
+.d-pad { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; justify-content: center; margin: 0 auto; }
+.btn-mode { width: 100%; background: #4b4b69; margin-top: 5px; }
+.btn-mode.active { background: var(--accent); color: black; }
+.video-wrapper { position: relative; width: 100%; max-width: 320px; margin: 15px auto; border-radius: 10px; overflow: hidden; display: none; }
+video, canvas { width: 100%; height: auto; border-radius: 10px; }
+canvas { position: absolute; top: 0; left: 0; z-index: 10; }
+.data-stream { font-size: 12px; color: #888; margin-top: 10px; }
+.error-text { color: var(--danger); }
+.warning-text { color: var(--warning); }
+</style>
 </head>
 <body>
-
 <div class="dashboard">
-    <h1>🤖 Control Multimodal</h1>
-    
-    <div class="status-box">
-        <div>Conexión: <span id="status" class="status-text">Desconectado</span></div>
-        <div>Comando enviado: <span id="cmdSent" class="cmd-text">-</span></div>
-    </div>
-
-    <div class="conn-grid">
-        <button class="btn-usb" onclick="conectarSerial()">🔌 Conectar USB (PC)</button>
-        <button class="btn-ble" onclick="conectarBLE()">📡 Conectar BLE (Móvil)</button>
-    </div>
-
-    <!-- MODO 1: BOTONES -->
-    <div class="section">
-        <h3>1. Botones Táctiles</h3>
-        <div class="d-pad">
-            <div></div><button class="btn-dir" onclick="enviarComando('ad')">▲</button><div></div>
-            <button class="btn-dir" onclick="enviarComando('ga')">◀</button>
-            <button class="btn-stop" onclick="enviarComando('stop')">STOP</button>
-            <button class="btn-dir" onclick="enviarComando('gh')">▶</button>
-            <div></div><button class="btn-dir" onclick="enviarComando('at')">▼</button><div></div>
-        </div>
-    </div>
-
-    <!-- MODO 2: ACELERÓMETRO -->
-    <div class="section">
-        <h3>2. Acelerómetro</h3>
-        <button id="btnAccel" class="btn-mode" onclick="toggleAccel()">Activar Inclinación</button>
-        <div id="accelData" class="data-stream">Mueve el celular para controlar</div>
-    </div>
-
-    <!-- MODO 3 Y 5: CÁMARA (GESTOS) -->
-    <div class="section">
-        <h3>3 & 5. Visión Artificial (Manos y Rostro)</h3>
-        <div class="conn-grid">
-            <button id="btnHands" class="btn-mode" onclick="setVisionMode('hands')">🖐 Manos</button>
-            <button id="btnFace" class="btn-mode" onclick="setVisionMode('face')">😎 Rostro</button>
-        </div>
-        <div class="video-wrapper" id="videoContainer">
-            <video id="videoElement" autoplay playsinline></video>
-            <canvas id="canvasElement"></canvas>
-        </div>
-    </div>
-
-    <!-- MODO 4: VOZ -->
-    <div class="section">
-        <h3>4. Reconocimiento de Voz</h3>
-        <button id="btnVoice" class="btn-mode" onclick="toggleVoice()">🎤 Activar Micrófono</button>
-        <div id="voiceData" class="data-stream">Di: Adelante, Atrás, Izquierda, Derecha, Parar</div>
-    </div>
+<h1>🤖 Control Multimodal</h1>
+<div class="status-box">
+<div>Conexión: <span id="status" class="status-text">Desconectado</span></div>
+<div>Comando enviado: <span id="cmdSent" class="cmd-text">-</span></div>
 </div>
-
+<!-- Pestaña de Conexión -->
+<div class="conn-grid">
+<button class="btn-usb" onclick="conectarSerial()">🔌 Conectar USB (PC)</button>
+<button class="btn-ble" onclick="conectarBLE()">📡 Conectar BLE (Móvil)</button>
+</div>
+<!-- MODO 1: BOTONES -->
+<div class="section">
+<h3>1. Botones Táctiles</h3>
+<div class="d-pad">
+<div></div><button class="btn-dir" onclick="enviarComando('ad')">▲</button><div></div>
+<button class="btn-dir" onclick="enviarComando('ga')">◀</button>
+<button class="btn-stop" onclick="enviarComando('stop', true)">STOP</button>
+<button class="btn-dir" onclick="enviarComando('gh')">▶</button>
+<div></div><button class="btn-dir" onclick="enviarComando('at')">▼</button><div></div>
+</div>
+</div>
+<!-- MODO 2: ACELERÓMETRO -->
+<div class="section">
+<h3>2. Acelerómetro (Inclinación)</h3>
+<button id="btnAccel" class="btn-mode" onclick="toggleAccel()">Activar Inclinación</button>
+<div id="accelData" class="data-stream">Mueve el celular para controlar</div>
+</div>
+<!-- MODO 4: VOZ -->
+<div class="section">
+<h3>3. Reconocimiento de Voz</h3>
+<button id="btnVoice" class="btn-mode" onclick="toggleVoice()">🎤 Activar Micrófono</button>
+<div id="voiceData" class="data-stream">Di: Adelante, Atrás, Izquierda, Derecha, Parar</div>
+</div>
+<!-- MODOS 3 Y 5: VISIÓN ARTIFICIAL -->
+<div class="section">
+<h3>4 & 5. Visión (Manos y Rostro)</h3>
+<div class="conn-grid">
+<button id="btnHands" class="btn-mode" onclick="setVisionMode('hands')">🖐 Manos</button>
+<button id="btnFace" class="btn-mode" onclick="setVisionMode('face')">😎 Rostro</button>
+</div>
+<div class="video-wrapper" id="videoContainer">
+<video id="videoElement" autoplay playsinline></video>
+<canvas id="canvasElement"></canvas>
+</div>
+<div id="visionData" class="data-stream">Asegúrate de tener buena iluminación</div>
+</div>
+</div>
 <script>
-    // ==========================================
-    // SISTEMA CENTRAL DE COMUNICACIÓN
-    // ==========================================
-    let puertoSerial = null;
-    let escritorSerial = null;
-    let caracteristicaBLE = null;
-    let ultimoComando = "";
-
-    async function enviarComando(cmd) {
-        if (cmd === ultimoComando) return;
-        ultimoComando = cmd;
-        document.getElementById('cmdSent').innerText = cmd.toUpperCase();
-
-        try {
-            const encoder = new TextEncoder();
-            // Envía por Serial (USB) si está conectado
-            if (escritorSerial) {
-                await escritorSerial.write(encoder.encode(cmd + "\n"));
-            }
-            // Envía por Bluetooth (BLE) si está conectado
-            if (caracteristicaBLE) {
-                await caracteristicaBLE.writeValue(encoder.encode(cmd));
-            }
-        } catch (error) {
-            console.error("Error de transmisión:", error);
+// ==========================================
+// SISTEMA CENTRAL DE COMUNICACIÓN
+// ==========================================
+// Nombre exacto anunciado por el firmware (BLEDevice::init("Twingo")).
+const BLE_DEVICE_NAME = 'Twingo';
+const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+const CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+let puertoSerial = null;
+let escritorSerial = null;
+let bleDevice = null;
+let caracteristicaBLE = null;
+let ultimoComando = "";
+// cmd: comando a enviar.
+// forzar: si es true, se reenvía aunque sea igual al último comando
+// confirmado (usado por STOP, para que siempre "gane").
+async function enviarComando(cmd, forzar = false) {
+    if (cmd === ultimoComando && !forzar) return;
+    if (!escritorSerial && !caracteristicaBLE) {
+        // No hay ningún transporte conectado; no tiene sentido intentar.
+        return;
+    }
+    try {
+        const encoder = new TextEncoder();
+        let enviado = false;
+        
+        if (escritorSerial) {
+            // Corrección 1: Salto de línea limpio y correcto para C++
+            await escritorSerial.write(encoder.encode(cmd + "\n"));
+            enviado = true;
         }
+        
+        if (caracteristicaBLE) {
+            await caracteristicaBLE.writeValue(encoder.encode(cmd));
+            enviado = true;
+        }
+        
+        if (enviado) {
+            ultimoComando = cmd;
+            document.getElementById('cmdSent').innerText = cmd.toUpperCase();
+            limpiarError();
+        }
+    } catch (error) {
+        console.error("Error de transmisión:", error);
+        mostrarError("Fallo al enviar — reintentando próximo comando");
     }
+}
 
-    async function conectarSerial() {
-        try {
-            puertoSerial = await navigator.serial.requestPort();
-            await puertoSerial.open({ baudRate: 115200 });
-            escritorSerial = puertoSerial.writable.getWriter();
-            document.getElementById('status').innerText = "Conectado (USB)";
-            document.getElementById('status').style.color = "var(--accent)";
-        } catch (e) { alert("Error USB: " + e.message); }
-    }
+function mostrarError(msg) {
+    const status = document.getElementById('status');
+    status.innerText = msg;
+    status.classList.add('error-text');
+}
 
-    async function conectarBLE() {
-        try {
-            const device = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'Robot-IA' }],
-                optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
-            });
-            const server = await device.gatt.connect();
-            const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
-            caracteristicaBLE = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26a8');
-            document.getElementById('status').innerText = "Conectado (BLE)";
-            document.getElementById('status').style.color = "var(--accent)";
-        } catch (e) { alert("Error BLE: " + e.message); }
-    }
+function limpiarError() {
+    document.getElementById('status').classList.remove('error-text');
+}
 
-    // ==========================================
-    // MODO 2: ACELERÓMETRO
-    // ==========================================
-    let accelActive = false;
-    async function toggleAccel() {
-        if (!accelActive) {
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+async function conectarSerial() {
+    if (!("serial" in navigator)) return alert("Tu navegador no soporta Web Serial. Usa Chrome en PC.");
+    try {
+        puertoSerial = await navigator.serial.requestPort();
+        await puertoSerial.open({ baudRate: 115200 });
+        
+        // Evitar que la ESP32 se reinicie por culpa de DTR/RTS
+        await puertoSerial.setSignals({ dataTerminalReady: false, requestToSend: false });
+        
+        escritorSerial = puertoSerial.writable.getWriter();
+        ultimoComando = ""; 
+        const status = document.getElementById('status');
+        status.innerText = "Conectado (USB)";
+        status.style.color = "var(--accent)";
+        limpiarError();
+    } catch (e) { alert("Error USB: " + e.message); }
+}
+
+async function conectarBLE() {
+    if (!("bluetooth" in navigator)) return alert("Tu navegador no soporta Web Bluetooth.");
+    try {
+        bleDevice = await navigator.bluetooth.requestDevice({
+            filters: [{ name: BLE_DEVICE_NAME }],
+            optionalServices: [SERVICE_UUID]
+        });
+        bleDevice.addEventListener('gattserverdisconnected', onBLEDisconnected);
+        
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        caracteristicaBLE = await service.getCharacteristic(CHARACTERISTIC_UUID);
+        ultimoComando = ""; 
+        const status = document.getElementById('status');
+        status.innerText = "Conectado (BLE)";
+        status.style.color = "var(--accent)";
+        limpiarError();
+    } catch (e) { alert("Error BLE: " + e.message); }
+}
+
+function onBLEDisconnected() {
+    caracteristicaBLE = null;
+    ultimoComando = "";
+    const status = document.getElementById('status');
+    status.innerText = "Desconectado (BLE) — reconecta";
+    status.style.color = "var(--danger)";
+}
+
+// ==========================================
+// MODO 2: ACELERÓMETRO
+// ==========================================
+let accelActive = false;
+async function toggleAccel() {
+    if (!accelActive) {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
                 const p = await DeviceOrientationEvent.requestPermission();
-                if (p !== 'granted') return alert("Permiso denegado.");
-            }
-            window.addEventListener('deviceorientation', handleOrientation);
-            document.getElementById('btnAccel').classList.add('active');
-            accelActive = true;
-        } else {
-            window.removeEventListener('deviceorientation', handleOrientation);
-            document.getElementById('btnAccel').classList.remove('active');
-            enviarComando('stop');
-            accelActive = false;
+                if (p !== 'granted') return alert("Permiso denegado para usar los sensores.");
+            } catch (e) { console.error(e); }
         }
+        window.addEventListener('deviceorientation', handleOrientation);
+        document.getElementById('btnAccel').classList.add('active');
+        accelActive = true;
+    } else {
+        window.removeEventListener('deviceorientation', handleOrientation);
+        document.getElementById('btnAccel').classList.remove('active');
+        enviarComando('stop', true);
+        accelActive = false;
     }
+}
 
-    function handleOrientation(event) {
-        let pitch = event.beta; let roll = event.gamma;
-        if (pitch === null) return;
-        document.getElementById('accelData').innerText = `Pitch: ${Math.round(pitch)}° | Roll: ${Math.round(roll)}°`;
-        
-        let cmd = "stop";
-        if (pitch < -15) cmd = "ad";
-        else if (pitch > 20) cmd = "at";
-        else if (roll > 20) cmd = "gh";
-        else if (roll < -20) cmd = "ga";
-        enviarComando(cmd);
-    }
+function handleOrientation(event) {
+    let pitch = event.beta; let roll = event.gamma;
+    if (pitch === null) return;
+    document.getElementById('accelData').innerText = `Pitch: ${Math.round(pitch)}° | Roll: ${Math.round(roll)}°`;
+    let cmd = "stop";
+    if (pitch < -15) cmd = "ad";
+    else if (pitch > 20) cmd = "at";
+    else if (roll > 20) cmd = "gh";
+    else if (roll < -20) cmd = "ga";
+    enviarComando(cmd);
+}
 
-    // ==========================================
-    // MODO 4: RECONOCIMIENTO DE VOZ
-    // ==========================================
-    let recognition;
-    let voiceActive = false;
+// ==========================================
+// MODO 4: RECONOCIMIENTO DE VOZ
+// ==========================================
+let recognition;
+let voiceActive = false;
+if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.lang = 'es-CO'; 
     
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = true;
-        recognition.lang = 'es-CO';
-        
-        recognition.onresult = (event) => {
-            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-            document.getElementById('voiceData').innerText = `Escuchado: "${transcript}"`;
-            
-            if (transcript.includes("adelante") || transcript.includes("avanza")) enviarComando("ad");
-            else if (transcript.includes("atrás") || transcript.includes("reversa")) enviarComando("at");
-            else if (transcript.includes("izquierda")) enviarComando("ga");
-            else if (transcript.includes("derecha")) enviarComando("gh");
-            else if (transcript.includes("para") || transcript.includes("detente") || transcript.includes("stop")) enviarComando("stop");
-        };
-    }
-
-    function toggleVoice() {
-        if (!recognition) return alert("Tu navegador no soporta control de voz.");
-        if (!voiceActive) {
-            recognition.start();
-            document.getElementById('btnVoice').classList.add('active');
-            voiceActive = true;
-        } else {
-            recognition.stop();
-            document.getElementById('btnVoice').classList.remove('active');
-            enviarComando('stop');
-            voiceActive = false;
+    recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+        document.getElementById('voiceData').innerText = `Escuchado: "${transcript}"`;
+        if (transcript.includes("adelante") || transcript.includes("avanza")) enviarComando("ad");
+        else if (transcript.includes("atrás") || transcript.includes("reversa") || transcript.includes("atras")) enviarComando("at");
+        else if (transcript.includes("izquierda")) enviarComando("ga");
+        else if (transcript.includes("derecha")) enviarComando("gh");
+        else if (transcript.includes("para") || transcript.includes("detente") || transcript.includes("stop")) enviarComando("stop", true);
+    };
+    
+    recognition.onend = () => {
+        if (voiceActive) {
+            // Corrección 2: Comentario de bloque debidamente cerrado
+            try { recognition.start(); } catch (e) { /* ya estaba iniciado */ }
         }
+    };
+    
+    recognition.onerror = (event) => {
+        console.error("Error de reconocimiento de voz:", event.error);
+    };
+}
+
+function toggleVoice() {
+    if (!recognition) return alert("Tu navegador no soporta control de voz (Usa Chrome).");
+    if (!voiceActive) {
+        voiceActive = true; 
+        recognition.start();
+        document.getElementById('btnVoice').classList.add('active');
+    } else {
+        voiceActive = false;
+        recognition.stop();
+        document.getElementById('btnVoice').classList.remove('active');
+        enviarComando('stop', true);
     }
+}
 
-    // ==========================================
-    // MODOS 3 Y 5: VISIÓN (MANOS Y ROSTRO)
-    // ==========================================
-    const videoElement = document.getElementById('videoElement');
-    const canvasElement = document.getElementById('canvasElement');
-    const canvasCtx = canvasElement.getContext('2d');
-    let camera = null;
-    let visionMode = 'none'; // 'hands', 'face', 'none'
+// ==========================================
+// MODOS 3 Y 5: VISIÓN (MANOS Y ROSTRO)
+// ==========================================
+const videoElement = document.getElementById('videoElement');
+const canvasElement = document.getElementById('canvasElement');
+const canvasCtx = canvasElement.getContext('2d');
+let camera = null;
+let visionMode = 'none';
 
-    // Configuración MediaPipe Hands
-    const hands = new window.Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
-    hands.onResults((results) => {
-        if (visionMode !== 'hands') return;
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-            const lm = results.multiHandLandmarks[0];
-            window.drawConnectors(canvasCtx, lm, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
-            window.drawLandmarks(canvasCtx, lm, {color: '#FF0000', radius: 2});
-            
-            let cmd = "stop";
-            if (lm[8].y < 0.3) cmd = "ad"; 
-            else if (lm[8].y > 0.7) cmd = "at"; 
-            else if (lm[8].x < 0.3) cmd = "gh"; 
-            else if (lm[8].x > 0.7) cmd = "ga"; 
-            enviarComando(cmd);
-        } else { enviarComando("stop"); }
-    });
-
-    // Configuración MediaPipe FaceMesh
-    const faceMesh = new window.FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
-    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6 });
-    faceMesh.onResults((results) => {
-        if (visionMode !== 'face') return;
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-        
-        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-            const lm = results.multiFaceLandmarks[0];
-            
-            // Dibujar puntos clave (Boca y Nariz)
-            canvasCtx.fillStyle = "#FF0000";
-            [1, 13, 14].forEach(id => {
-                canvasCtx.beginPath();
-                canvasCtx.arc(lm[id].x * canvasElement.width, lm[id].y * canvasElement.height, 3, 0, 2*Math.PI);
-                canvasCtx.fill();
-            });
-
-            // Heurística de rostro
-            const noseY = lm[1].y;
-            const noseX = lm[1].x;
-            const mouthOpen = (lm[14].y - lm[13].y) > 0.04; // Distancia entre labio superior e inferior
-
-            let cmd = "stop";
-            if (mouthOpen) { cmd = "stop"; } // Abrir la boca es el freno de emergencia
-            else if (noseY < 0.35) { cmd = "ad"; } // Mirar arriba
-            else if (noseY > 0.65) { cmd = "at"; } // Mirar abajo
-            else if (noseX < 0.35) { cmd = "gh"; } // Mirar izquierda
-            else if (noseX > 0.65) { cmd = "ga"; } // Mirar derecha
-            
-            enviarComando(cmd);
-        } else { enviarComando("stop"); }
-    });
-
-    function setVisionMode(mode) {
-        visionMode = (visionMode === mode) ? 'none' : mode;
-        
-        document.getElementById('btnHands').classList.remove('active');
-        document.getElementById('btnFace').classList.remove('active');
-        
-        if (visionMode === 'none') {
-            document.getElementById('videoContainer').style.display = 'none';
-            if (camera) { camera.stop(); camera = null; }
-            enviarComando('stop');
-            return;
-        }
-
-        if (visionMode === 'hands') document.getElementById('btnHands').classList.add('active');
-        if (visionMode === 'face') document.getElementById('btnFace').classList.add('active');
-
-        document.getElementById('videoContainer').style.display = 'block';
-        canvasElement.width = 320; canvasElement.height = 240;
-
-        if (!camera) {
-            camera = new window.Camera(videoElement, {
-                onFrame: async () => {
-                    if (visionMode === 'hands') await hands.send({image: videoElement});
-                    else if (visionMode === 'face') await faceMesh.send({image: videoElement});
-                },
-                width: 320, height: 240, facingMode: "user"
-            });
-            camera.start();
-        }
+// Configuración MediaPipe Hands
+const hands = new window.Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6 });
+hands.onResults((results) => {
+    if (visionMode !== 'hands') return;
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const lm = results.multiHandLandmarks[0];
+        window.drawConnectors(canvasCtx, lm, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+        window.drawLandmarks(canvasCtx, lm, {color: '#FF0000', radius: 2});
+        let cmd = "stop";
+        if (lm[8].y < 0.3) cmd = "ad";
+        else if (lm[8].y > 0.7) cmd = "at";
+        else if (lm[8].x < 0.3) cmd = "gh";
+        else if (lm[8].x > 0.7) cmd = "ga";
+        enviarComando(cmd);
+        document.getElementById('visionData').innerText = "Mano detectada";
+    } else {
+        enviarComando("stop");
+        document.getElementById('visionData').innerText = "Buscando mano...";
     }
+});
+
+// Configuración MediaPipe FaceMesh
+const faceMesh = new window.FaceMesh({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`});
+faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6 });
+faceMesh.onResults((results) => {
+    if (visionMode !== 'face') return;
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+        const lm = results.multiFaceLandmarks[0];
+        
+        canvasCtx.fillStyle = "#00FF88";
+        [1, 13, 14].forEach(id => {
+            canvasCtx.beginPath();
+            // Corrección 3: Operador de multiplicación agregado correctamente (2 * Math.PI)
+            canvasCtx.arc(lm[id].x * canvasElement.width, lm[id].y * canvasElement.height, 4, 0, 2 * Math.PI);
+            canvasCtx.fill();
+        });
+        
+        const noseY = lm[1].y;
+        const noseX = lm[1].x;
+        const mouthOpen = (lm[14].y - lm[13].y) > 0.04;
+        let cmd = "stop";
+        if (mouthOpen) { cmd = "stop"; } 
+        else if (noseY < 0.35) { cmd = "ad"; }
+        else if (noseY > 0.65) { cmd = "at"; }
+        else if (noseX < 0.35) { cmd = "gh"; }
+        else if (noseX > 0.65) { cmd = "ga"; }
+        
+        enviarComando(cmd);
+        document.getElementById('visionData').innerText = mouthOpen ? "¡Freno facial activado!" : "Rostro detectado";
+    } else {
+        enviarComando("stop");
+        document.getElementById('visionData').innerText = "Buscando rostro...";
+    }
+});
+
+function setVisionMode(mode) {
+    visionMode = (visionMode === mode) ? 'none' : mode;
+    document.getElementById('btnHands').classList.remove('active');
+    document.getElementById('btnFace').classList.remove('active');
+    
+    if (visionMode === 'none') {
+        document.getElementById('videoContainer').style.display = 'none';
+        if (camera) { camera.stop(); camera = null; }
+        enviarComando('stop', true);
+        document.getElementById('visionData').innerText = "Cámara apagada";
+        return;
+    }
+    
+    if (visionMode === 'hands') document.getElementById('btnHands').classList.add('active');
+    if (visionMode === 'face') document.getElementById('btnFace').classList.add('active');
+    
+    document.getElementById('videoContainer').style.display = 'block';
+    canvasElement.width = 320; canvasElement.height = 240;
+    document.getElementById('visionData').innerText = "Iniciando cámara...";
+    
+    if (!camera) {
+        camera = new window.Camera(videoElement, {
+            onFrame: async () => {
+                if (visionMode === 'hands') await hands.send({image: videoElement});
+                else if (visionMode === 'face') await faceMesh.send({image: videoElement});
+            },
+            width: 320, height: 240, facingMode: "user"
+        });
+        camera.start();
+    }
+}
 </script>
-
 </body>
 </html>
